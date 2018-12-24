@@ -10,9 +10,11 @@ import cv2
 import tensorflow as tf
 from tensorpack import *
 
+from recv_img import *
+from robot import *
+
 from code_seg.train import Model as SegModel
 from code_det.train import Model as DetModel
-from recv_img import *
 from cfgs.config import cfg
 
 from code_det.cfgs.config import cfg as det_cfg
@@ -53,6 +55,7 @@ recv_img_thread = RecvImgThread(img_conn)
 recv_img_thread.start()
 
 # go back to the observe location
+go_observe_location()
 
 while True:
     msg = input('Continue(c) or Quit(q)?')
@@ -64,7 +67,7 @@ while True:
         done_recv_img = time.time()
         print('recv time: %g' % (done_recv_img - start_time))
 
-        # 2. convert to point cloud and colorize
+        # 2. convert to point cloud (under depth camera frame) and colorize
         pc_xyz = []
         pc_rgb = []
         for i in range(cfg.img_h):
@@ -101,26 +104,37 @@ while True:
         boxes = postprocess(predictions, image_shape=color_img.shape[:2], det_th=cfg.conf_th)
 
         # for each detected target
+        picks = []  # each pick is described with a location and coordinate
         for box in boxes:
-            pass
             # 3. get frustum pointset
             ext_box = enlarge_box(box, cfg.xpd_ratio, cfg.img_h, cfg.img_w)
             pc = filter_pc(point_cloud, ext_box)
 
             # 4. rotate the pointset
+            ori_pc = np.copy(pc)
             pc = rotate_pc(pc, ext_box)
 
             # 5. segment the pointset
-            predictions = seg_predict_func(pc)
+            predictions = seg_predict_func(pc)[0]
+            seg_idxs = np.where(predictions[0])[0]
+            seg_pc = ori_pc[0, seg_idxs]
 
             # 6. calculate the location and direction
+            tgt_pt = np.mean(seg_pc[:, :3])
+            direction = np.array([1, 0, 0])
+            picks.append({"pt": tgt_pt,
+                          "dir": direction})
 
         # for each calculated pick
         for pick in picks:
-            pass
             # 7. execute the pick
+            end_pt = pick['tgt_pt']
+            start_pt = end_pt - cfg.pick_dist * pick['dir']
+            go_cts_location(start_pt)
+            go_cts_location(end_pt)
 
         # 8. go back to the observe location
+        go_observe_location()
 
 
 

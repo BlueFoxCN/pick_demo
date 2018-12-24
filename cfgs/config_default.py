@@ -33,3 +33,5 @@ cfg.d2c_mat = np.array([[ 0.999996, -0.002270,  0.001785, -25.179001],
                         [0,          0,          0,          1]])
 
 cfg.final_mat = cfg.color_mat.dot(cfg.d2c_mat).dot(np.linalg.inv(cfg.depth_mat))
+
+cfg.pick_dist = 50
