@@ -37,22 +37,23 @@ class RecvImgThread(Thread):
 
     def run(self):
         depth_img_size = cfg.img_h * cfg.img_w
-        cur_frame = [None] * img_size
+        cur_frame = [None] * depth_img_size
         line_num = 1
 
         while self.recv:
 
             # receive the indicator (depth img or color img)
             data = self.conn.recv(4)
-            ind = struct.unpack('i', data)
+            ind = struct.unpack('i', data)[0]
 
             cur_idx = 0
             if ind == 0:
+                # print('receive a depth image')
                 # then receive a depth image
-                while cur_idx <= depth_img_size:
+                while cur_idx < depth_img_size:
                     recv_len = min(cfg.img_w * line_num * 2, (depth_img_size - cur_idx) * 2)
                     data = self.conn.recv(recv_len)
-                    value = struct.unpack('<%dH' % (), data)
+                    value = struct.unpack('<%dH' % (len(data) // 2), data)
                     cur_frame[cur_idx:cur_idx + len(value)] = value
                     cur_idx += len(value)
                 cur_depth_img = np.array(cur_frame).reshape(cfg.img_h, cfg.img_w)
@@ -64,18 +65,20 @@ class RecvImgThread(Thread):
 
                 if self.show_img == True:
                     cv2.imshow('depth_image', cur_depth_img)
-                    cv2.waitKey(0)
+                    cv2.waitKey(1)
             else:
+                # print('receive a color image')
                 # then receive a color image
                 data = self.conn.recv(4)
-                color_img_size = struct.unpack('i', data)
-                buf = []
-                while cur_idx <= color_img_size:
+                color_img_size = struct.unpack('i', data)[0]
+                buf = b''
+                while cur_idx < color_img_size:
                     recv_len = min(1000, (color_img_size - cur_idx))
                     data = self.conn.recv(recv_len)
                     buf = buf + data
                     cur_idx += len(data)
-                cur_color_img = cv2.imdecode(buf)
+                nparr = np.fromstring(buf, np.uint8)
+                cur_color_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
                 # insert data to the head of the list
                 for i in range(cfg.img_list_len - 1, 0, -1):
@@ -84,7 +87,7 @@ class RecvImgThread(Thread):
 
                 if self.show_img == True:
                     cv2.imshow('color_image', cur_color_img)
-                    cv2.waitKey(0)
+                    cv2.waitKey(1)
 
 
 
@@ -124,6 +127,6 @@ class RecvImgThread(Thread):
 
 
 if __name__ == "__main__":
-    conn = construct_conn():
-    recv_img_thread = RecvImgThread(img_conn, show_img=True)
+    conn = construct_conn()
+    recv_img_thread = RecvImgThread(conn, show_img=True)
     recv_img_thread.run()

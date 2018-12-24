@@ -6,6 +6,8 @@ cfg = edict()
 cfg.img_w = 640
 cfg.img_h = 480
 
+cfg.img_ip = "127.0.0.1"
+
 cfg.img_port = 9003
 cfg.img_list_len = 10
 
