@@ -1,13 +1,59 @@
+from cfgs.config import cfg
+from robot_kinematics import *
 
 
+class Robot:
+    def __init__():
+        ''' initialize the connection with the robot arm
+        '''
+        pass
 
-def go_observe_location():
-    pass
+    def go_observe_location(self):
+        '''
+        let the robot move to the observation location
+        return when the action is finished
+        '''
+        self.go_phi_cation(cfg.obs_loc)
+    
+    def go_phi_location(self, phi_ary)
+        '''
+        let the robot move to the specific location defined by angles of the six joints
 
-def go_phi_location(phi_ary)
-    pass
+        variable names:
+        * ``phi_ary``: six joints' angles, can be list or a numpy array
 
-def go_cts_location(coord):
-    sol_list = inverse_kinematics(coord)
-    phi_ary = sol_list[0]
-    go_phi_location(phi_ary)
+        return True when the action is finished, return False if the location is not available
+        '''
+        is_available = self.check_available(phi_ary)
+        if not is_available:
+            return False
+        # execute the action
+        return True
+
+    def check_available(self, angles):
+        '''
+        check whether the given angels are achivable
+        '''
+        for idx, angle in enumerate(angles):
+            if not cfg.ang_rng[idx][0] < angle < cfg.ang_rng[idx][1]:
+                return False
+            return True
+    
+    def go_cts_location(self, coord):
+        '''
+        let the robot move to the specific location defined by the cartesian coordinate
+
+        variable names:
+        * ``coord``: the cartisian coordinate, including the xyz and the direction, e.g., [100, 100, 100, 0, 0, -1]
+
+        return True when the action is finished, reutrn False if the location is not available
+        '''
+        sol_list = inverse_kinematics(coord)
+        phi_ary = None
+        for sol in sol_list:
+            if self.angles_available(sol):
+                phi_ary = sol
+                break
+        if phi_ary is None:
+            return False
+        return self.go_phi_location(phi_ary)

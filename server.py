@@ -1,17 +1,11 @@
-import socket
-import pickle
 import datetime
 import argparse
 import time
-import struct
 import os
 import numpy as np
 import cv2
-import tensorflow as tf
-from tensorpack import *
 
-from recv_img import *
-from robot import *
+from tensorpack import *
 
 from code_seg.train import Model as SegModel
 from code_det.train import Model as DetModel
@@ -21,13 +15,21 @@ from code_det.cfgs.config import cfg as det_cfg
 from code_seg.cfgs.config import cfg as seg_cfg
 
 from code_det.predict import postprocess
-from code_seg.utils import enlarge_box, filter_pc, rotate_pc
+from code_seg.utils import enlarge_box, filter_pc, rotate_pc, save_ply_file
+
+from recv_img import *
+from robot import *
 
 '''
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true', help='In debug mode, user input is used instead of the remote robot app.')
 args = parser.parse_args()
 '''
+
+if os.path.isdir(cfg.result_dir) == False:
+    os.mkdir(cfg.result_dir)
+
+r = Robot()
 
 # Load detection model and point cloud segmentation model
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
@@ -55,15 +57,19 @@ recv_img_thread = RecvImgThread(img_conn)
 recv_img_thread.start()
 
 # go back to the observe location
-go_observe_location()
+r.go_observe_location()
 
 while True:
     msg = input('Continue(c) or Quit(q)?')
 
     if msg == 'c':
+        # 0. generate result saving dir
+        vis_dir = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        vis_dir_path = os.path.join(cfg.result_dir, vis_dir)
+
         # 1. obtain the depth and color image
         start_time = time.time()
-        color_img, depth_img = recv_img_thread.get_img(sub_dir)
+        color_img, depth_img = recv_img_thread.get_img(vis_dir_path)
         done_recv_img = time.time()
         print('recv time: %g' % (done_recv_img - start_time))
 
@@ -95,6 +101,8 @@ while True:
 
         pc = np.hstack([np.array(pc_xyz), np.array(pc_rgb)])
 
+        save_ply_file(pc, os.path.join(vis_dir_path, 'pc.ply'))
+
 
         # 3. detect the targets from the color image
         input_img = cv2.resize(color_img, (det_cfg.img_w, det_cfg.img_h))
@@ -102,6 +110,23 @@ while True:
         spec_mask = np.zeros((1, det_cfg.n_boxes, det_cfg.img_h // 32, det_cfg.img_w // 32), dtype=float) == 0
         predictions = det_predict_func(input_img, spec_mask)
         boxes = postprocess(predictions, image_shape=color_img.shape[:2], det_th=cfg.conf_th)
+        boxes = boxes['taozi'] if 'taozi' in boxes.keys() else []
+
+        for box in boxes:
+            [conf, xmin, ymin, xmax, ymax] = box
+            cv2.rectangle(color_img,
+                          (int(xmin), int(ymin)),
+                          (int(xmax), int(ymax)),
+                          (0, 0, 255),
+                          3)
+            cv2.putText(color_img,
+                        str(round(conf, 2)),
+                        (int(xmin), int(ymin) - 3),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (0, 0, 255))
+
+        misc.imsave(os.path.join(vis_dir_path, 'det.jpg'), color_img)
 
         # for each detected target
         picks = []  # each pick is described with a location and coordinate
@@ -119,24 +144,32 @@ while True:
             seg_idxs = np.where(predictions[0])[0]
             seg_pc = ori_pc[0, seg_idxs]
 
-            # 6. calculate the location and direction
+            # 6. transform to the robot frame
+            g2b_list = g2b(cfg.obs_loc)
+            g2b = np.identity(4)
+            for t in T_list:
+                g2b = np.matmul(t, g2b)
+            c2b = g2b.dot(cfg.c2g)
+            for point in seg_pc:
+                point_homo = np.vstack(point[:3], 1)
+                point_base = c2b.dot(point_homo)[:3]
+                point[:3] = point_base
+
+            # 7. calculate the location and direction
             tgt_pt = np.mean(seg_pc[:, :3])
             direction = np.array([1, 0, 0])
             picks.append({"pt": tgt_pt,
                           "dir": direction})
 
-        # for each calculated pick
+        # 8. execute each calculated pick
         for pick in picks:
-            # 7. execute the pick
             end_pt = pick['tgt_pt']
             start_pt = end_pt - cfg.pick_dist * pick['dir']
-            go_cts_location(start_pt)
-            go_cts_location(end_pt)
+            r.go_cts_location(start_pt)
+            r.go_cts_location(end_pt)
 
-        # 8. go back to the observe location
-        go_observe_location()
-
-
+        # 9. go back to the observe location
+        r.go_observe_location()
 
     elif msg == 'q':
         break

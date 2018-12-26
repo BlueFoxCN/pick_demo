@@ -94,8 +94,7 @@ class RecvImgThread(Thread):
     def stop(self):
         self.recv = False
 
-    def get_img(self, sub_dir):
-        dir_path = os.path.join(cfg.save_dir, sub_dir)
+    def get_img(self, dir_path):
         imgs_buffer = copy.deepcopy(self.depth_imgs)
 
         imgs_buffer = np.array(imgs_buffer)
@@ -118,12 +117,14 @@ class RecvImgThread(Thread):
                 if num:
                     img_process[i, j] = int(np.sum(grid) / num)
 
-        save_path = os.path.join(dir_path, 'depth.jpg')
-        misc.imsave(save_path, img_process)
+        depth_img_save_path = os.path.join(dir_path, 'depth.jpg')
+        misc.imsave(depth_img_save_path, img_process)
+        color_img_save_path = os.path.join(dir_path, 'color.jpg')
+        misc.imsave(color_img_save_path, self.color_imgs[0])
         f = open(os.path.join(dir_path, 'depth.pkl'), 'wb')
         pickle.dump(img_process, f)
         print('Done process imgs')
-        return [self.color_imgs[0], depth_img_process]
+        return [self.color_imgs[0], img_process]
 
 
 if __name__ == "__main__":

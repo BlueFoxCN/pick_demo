@@ -15,13 +15,12 @@ def angle2rad(angle):
 def rad2angle(rad):
     return rad * 180 / np.pi
 
-def forward_kinematics(phi_angle_ary):
+def g2b(phi_angle_ary):
     theta_bias_ary = np.array([0, angle2rad(90), angle2rad(-90), 0, 0, 0])
     phi_ary = np.array([angle2rad(e) for e in phi_angle_ary])
     alpha_angle_ary = np.array([0, 90, 0, -90, 90, 90])
     alpha = np.array([angle2rad(e) for e in alpha_angle_ary])
     a = np.array([0, 140, 265, 0, 0, 0])
-    # for debug, the third element is 0, should be 20
     d = np.array([320, 0, 20, 343, 0, -156])
     theta = phi_ary + theta_bias_ary
 
@@ -34,6 +33,13 @@ def forward_kinematics(phi_angle_ary):
         T_list.append(T)
 
     T_list.reverse()
+
+    return T_list
+
+def forward_kinematics(phi_angle_ary):
+
+    T_list = g2b(phi_angle_ary)
+
     pt6 = np.array([0, 0, 0, 1])
     for T in T_list:
         pt6 = np.matmul(T, pt6)
