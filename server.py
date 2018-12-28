@@ -23,6 +23,7 @@ from robot import *
 parser = argparse.ArgumentParser()
 parser.add_argument('--sim', action='store_true', help='In simulation mode, the robot will not move.')
 parser.add_argument('--debug', action='store_true', help='In debug mode, images are read from files.')
+parser.add_argument('--vis', action='store_true', help='When set, save visulization results.')
 parser.add_argument('--img_path', help='debug image path')
 parser.add_argument('--depth_path', help='debug depth file path')
 args = parser.parse_args()
@@ -113,10 +114,11 @@ while True:
         done_cvt_pc = time.time()
         print('convert point cloud time: %g' % (done_cvt_pc - start_time))
 
-        start_time = time.time()
-        save_ply_file(pc, os.path.join(vis_dir_path, 'pc.ply'))
-        done_save_pc = time.time()
-        print('point cloud save time: %g' % (done_save_pc - start_time))
+        if args.vis == True and args.debug == False:
+            start_time = time.time()
+            save_ply_file(pc, os.path.join(vis_dir_path, 'pc.ply'))
+            done_save_pc = time.time()
+            print('point cloud save time: %g' % (done_save_pc - start_time))
 
         # 3. detect the targets from the color image
         input_img = cv2.resize(color_img, (det_cfg.img_w, det_cfg.img_h))
@@ -192,8 +194,11 @@ while True:
         for pick in picks:
             end_pt = pick['pt'] - cfg.tool_len * pick['dir']
             start_pt = end_pt - cfg.pick_dist * pick['dir']
-            r.go_cts_location(np.hstack([start_pt, pick['dir']]))
-            r.go_cts_location(np.hstack([end_pt, pick['dir']]))
+            start_coord = np.hstack([start_pt, pick['dir']])
+            end_coord = np.hstack([end_pt, pick['dir']])
+            r. go_cts_locations([start_coord, end_coord])
+            # r.go_cts_location(start_coord)
+            # r.go_cts_location(end_coord)
 
         # 9. go back to the observe location
         r.go_observe_location()

@@ -45,6 +45,49 @@ class Robot:
             if not cfg.ang_rng[idx][0] < angle < cfg.ang_rng[idx][1]:
                 return False
         return True
+
+    def phi_ary_diff(self, phi_ary_1, phi_ary_2):
+        weights = np.array([1, 0.5, 0.25, 0.125, 0.0625, 0])
+        diff_ary = np.abs(phi_ary_1 - np.array(phi_ary_2))
+        diff = np.sum(weights * diff_ary)
+        return diff
+
+
+    def go_cts_locations(self, coord_list):
+        '''
+        let the robot move to a series of specific locations defined by the cartesian coordinate
+
+        variable names:
+        * ``coord_list``: the list of cartisian coordinate, including the xyz and the direction, e.g., [100, 100, 100, 0, 0, -1]
+
+        return True when the action is finished, reutrn False if the location is not available
+        '''
+        sol_list_list = []
+        for idx, coord in enumerate(coord_list):
+            sol_list = inverse_kinematics(coord)
+            sol_list = [e for e in sol_list if self.check_available(e)]
+            if len(sol_list) == 0:
+                print("Coord %d is not achievable!" % idx)
+                return False
+            sol_list_list.append(sol_list)
+
+        phi_ary_list = []
+        last_phi_ary = None
+        import pdb
+        pdb.set_trace()
+        for sol_list in sol_list_list:
+            if last_phi_ary is None:
+                phi_ary_list.append(sol_list[0])
+                last_phi_ary = sol_list[0]
+            else:
+                # find the one in sol_list which is nearest to the last_phi_list
+                diffs = [self.phi_ary_diff(last_phi_ary, e) for e in sol_list]
+                min_idx = np.argmin(diffs)
+                phi_ary_list.append(sol_list[min_idx])
+                last_phi_ary = sol_list[min_idx]
+
+        for phi_ary in phi_ary_list:
+            self.go_phi_location(phi_ary)
     
     def go_cts_location(self, coord):
         '''
