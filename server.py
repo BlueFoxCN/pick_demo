@@ -84,33 +84,30 @@ while True:
 
         # 2. convert to point cloud (under depth camera frame) and colorize
         start_time = time.time()
-        pc_xyz = []
-        pc_rgb = []
+
+        widths = np.array(range(cfg.img_w))
+        widths = np.tile(widths, cfg.img_h)
+        heights = np.array(range(cfg.img_h))
+        heights = np.tile(np.expand_dims(heights, 1), cfg.img_w).reshape(-1)
+        ones = np.ones((cfg.img_w * cfg.img_h))
+        uvs_depth = np.vstack([widths, heights, ones])
+
+        zs = depth_img.reshape(-1)
+        uvs_depth = uvs_depth * zs
+        uvs_depth = uvs_depth[:, np.any(uvs_depth > 0, axis=0)]
+        uvs_depth_homo = np.vstack([uvs_depth, np.ones(uvs_depth.shape[1])])
+        uvs_color_homo = cfg.final_mat.dot(uvs_depth_homo)
+
+        us_color = (uvs_color_homo[0] / uvs_color_homo[2]).astype(np.int)
+        vs_color = (uvs_color_homo[1] / uvs_color_homo[2]).astype(np.int)
+
         depth_mat_inv = np.linalg.inv(cfg.depth_mat)
-        for i in range(cfg.img_h):
-            for j in range(cfg.img_w):
-                if depth_img[i, j] == 0:
-                    continue
-                z = depth_img[i, j]
-                uv_depth_homo = np.zeros((4))
-                uv_depth_homo[0] = j * z
-                uv_depth_homo[1] = i * z;
-                uv_depth_homo[2] = z;
-                uv_depth_homo[3] = 1;
+        xyzs_depth_homo = depth_mat_inv.dot(uvs_depth_homo)
+        pc_xyz = xyzs_depth_homo[:3].transpose()
 
-                uv_color_homo = cfg.final_mat.dot(uv_depth_homo);
-                u_color = int(uv_color_homo[0] / uv_color_homo[2]);
-                v_color = int(uv_color_homo[1] / uv_color_homo[2]);
+        pc_rgb = color_img[vs_color, us_color]
+        pc = np.hstack([pc_xyz, pc_rgb])
 
-                xyz_depth_homo = depth_mat_inv.dot(uv_depth_homo)
-
-                x = xyz_depth_homo[0]
-                y = xyz_depth_homo[1]
-
-                pc_xyz.append(xyz_depth_homo[:3])
-                pc_rgb.append(color_img[v_color, u_color])
-
-        pc = np.hstack([np.array(pc_xyz), np.array(pc_rgb)])
         done_cvt_pc = time.time()
         print('convert point cloud time: %g' % (done_cvt_pc - start_time))
 
