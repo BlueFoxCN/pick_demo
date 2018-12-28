@@ -73,8 +73,8 @@ class Robot:
 
         phi_ary_list = []
         last_phi_ary = None
-        import pdb
-        pdb.set_trace()
+        # import pdb
+        # pdb.set_trace()
         for sol_list in sol_list_list:
             if last_phi_ary is None:
                 phi_ary_list.append(sol_list[0])

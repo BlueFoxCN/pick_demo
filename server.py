@@ -114,13 +114,14 @@ while True:
         done_cvt_pc = time.time()
         print('convert point cloud time: %g' % (done_cvt_pc - start_time))
 
-        if args.vis == True and args.debug == False:
+        if args.vis == True:
             start_time = time.time()
             save_ply_file(pc, os.path.join(vis_dir_path, 'pc.ply'))
             done_save_pc = time.time()
             print('point cloud save time: %g' % (done_save_pc - start_time))
 
         # 3. detect the targets from the color image
+        start_time = time.time()
         input_img = cv2.resize(color_img, (det_cfg.img_w, det_cfg.img_h))
         input_img = np.expand_dims(input_img, axis=0)
         spec_mask = np.zeros((1, det_cfg.n_boxes, det_cfg.img_h // 32, det_cfg.img_w // 32), dtype=float) == 0
@@ -149,37 +150,54 @@ while True:
                         (255, 0, 0))
 
         misc.imsave(os.path.join(vis_dir_path, 'det.jpg'), color_img)
+        done_det = time.time()
+        print('detection time: %g' % (done_det - start_time))
 
+        print('%d boxes' % len(boxes))
         # for each detected target
         picks = []  # each pick is described with a location and coordinate
-        for idx, box in enumerate(boxes):
-            # 3. get frustum pointset
-            ext_box = enlarge_box(box[1:], cfg.xpd_ratio, cfg.img_h, cfg.img_w)
-            filtered_idxes = filter_pc(pc, ext_box)
-            frustum_pc = pc[filtered_idxes]
+
+        # 3. get frustum pointset
+        start_time = time.time()
+        ext_boxes = [enlarge_box(e[1:], cfg.xpd_ratio, cfg.img_h, cfg.img_w) for e in boxes]
+        filtered_idxes_list = filter_pc(pc, ext_boxes)
+        done_filter_pc = time.time()
+        print('filter pc time: %g' % (done_filter_pc - start_time))
+
+        for idx, ext_box in enumerate(ext_boxes):
 
             # 4. rotate the pointset
+            start_time = time.time()
+            frustum_pc = pc[filtered_idxes_list[idx]]
             ori_frustum_pc = np.copy(frustum_pc)
             frustum_pc = rotate_pc(frustum_pc, ext_box)
+            done_rotate_pc = time.time()
+            print('rotate pc time: %g' % (done_rotate_pc - start_time))
 
             # 5. segment the pointset
+            start_time = time.time()
             save_ply_file(ori_frustum_pc, os.path.join(vis_dir_path, '%d.ply' % idx))
             frustum_pc = np.expand_dims(frustum_pc, 0)
             predictions = seg_predict_func(frustum_pc)[0]
             seg_idxs = np.where(predictions[0])[0]
             seg_frustum_pc = ori_frustum_pc[seg_idxs]
             save_ply_file(seg_frustum_pc, os.path.join(vis_dir_path, '%d_seg.ply' % idx))
+            done_segment_pc = time.time()
+            print('segment pc time: %g' % (done_segment_pc - start_time))
 
             # 6. transform to the robot frame
+            start_time = time.time()
             g2b_list = g2b(cfg.obs_loc)
-            g2b = np.identity(4)
+            g2b_mat = np.identity(4)
             for t in g2b_list:
-                g2b = np.matmul(t, g2b)
-            c2b = g2b.dot(cfg.c2g_mat)
+                g2b_mat = np.matmul(t, g2b_mat)
+            c2b_mat = g2b_mat.dot(cfg.c2g_mat)
             for point in seg_frustum_pc:
                 point_homo = np.hstack([point[:3], 1])
-                point_base = c2b.dot(point_homo)[:3]
+                point_base = c2b_mat.dot(point_homo)[:3]
                 point[:3] = point_base
+            done_transform_pc = time.time()
+            print('transform pc time: %g' % (done_transform_pc - start_time))
 
             # 7. calculate the location and direction
             tgt_pt = np.mean(seg_frustum_pc[:, :3], 0)
@@ -188,17 +206,13 @@ while True:
             picks.append({"pt": tgt_pt,
                           "dir": direction})
 
-            break
-
         # 8. execute each calculated pick
         for pick in picks:
             end_pt = pick['pt'] - cfg.tool_len * pick['dir']
             start_pt = end_pt - cfg.pick_dist * pick['dir']
             start_coord = np.hstack([start_pt, pick['dir']])
             end_coord = np.hstack([end_pt, pick['dir']])
-            r. go_cts_locations([start_coord, end_coord])
-            # r.go_cts_location(start_coord)
-            # r.go_cts_location(end_coord)
+            r.go_cts_locations([start_coord, end_coord])
 
         # 9. go back to the observe location
         r.go_observe_location()
