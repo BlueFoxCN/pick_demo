@@ -18,7 +18,7 @@ from code_det.predict import postprocess
 from code_seg.utils import enlarge_box, filter_pc, rotate_pc, save_ply_file
 
 from recv_img import *
-from robot import *
+from robot_control import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--sim', action='store_true', help='In simulation mode, the robot will not move.')
