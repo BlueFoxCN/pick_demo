@@ -79,6 +79,7 @@ class RecvImgThread(Thread):
                     cur_idx += len(data)
                 nparr = np.fromstring(buf, np.uint8)
                 cur_color_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                cur_color_img = cv2.cvtColor(cur_color_img, cv2.COLOR_BGR2RGB)
 
                 # insert data to the head of the list
                 for i in range(cfg.img_list_len - 1, 0, -1):

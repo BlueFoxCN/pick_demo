@@ -3,19 +3,19 @@ from robot_kinematics import *
 
 
 class Robot:
-    def __init__():
+    def __init__(self, sim):
         ''' initialize the connection with the robot arm
         '''
-        pass
+        self.sim = sim
 
     def go_observe_location(self):
         '''
         let the robot move to the observation location
         return when the action is finished
         '''
-        self.go_phi_cation(cfg.obs_loc)
+        self.go_phi_location(cfg.obs_loc)
     
-    def go_phi_location(self, phi_ary)
+    def go_phi_location(self, phi_ary):
         '''
         let the robot move to the specific location defined by angles of the six joints
 
@@ -27,7 +27,14 @@ class Robot:
         is_available = self.check_available(phi_ary)
         if not is_available:
             return False
-        # execute the action
+        print("Go to location: ")
+        print(' '.join([str(round(e, 2)) for e in phi_ary]))
+        if self.sim == True:
+            # move the robot
+            pass
+        else:
+            # send move command to the simulator
+            pass
         return True
 
     def check_available(self, angles):
@@ -37,7 +44,7 @@ class Robot:
         for idx, angle in enumerate(angles):
             if not cfg.ang_rng[idx][0] < angle < cfg.ang_rng[idx][1]:
                 return False
-            return True
+        return True
     
     def go_cts_location(self, coord):
         '''
@@ -51,9 +58,10 @@ class Robot:
         sol_list = inverse_kinematics(coord)
         phi_ary = None
         for sol in sol_list:
-            if self.angles_available(sol):
+            if self.check_available(sol):
                 phi_ary = sol
                 break
         if phi_ary is None:
+            print("Location unachievable!")
             return False
         return self.go_phi_location(phi_ary)
