@@ -1,4 +1,5 @@
 import serial
+import threading
 import time
 
 from cfgs.config import cfg
@@ -9,13 +10,48 @@ class Robot:
         ''' initialize the connection with the robot arm
         '''
         self.sim = sim
-        self.sleep_time = 5
+        self.timeout = 5
         if not self.sim:
             self.arm_com = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.5)
-            sendData = bytes([0x30, 0x10, 0x14])
-            self.arm_com.write(sendData)
+            # send the teach command
+            send_data = bytes([0x30, 0x10, 0x14])
+            self.arm_com.write(send_data)
+
+            # send the callback command
+            send_data = bytes("G07 GCM=1\r\n",'ascii')
+            self.arm_com.write(send_data)
+
+            self.arrived = False
+            self.stop_recv = False
+            self.recv_thread = threading.Thread(target=self.receive_data)
+            self.recv_thread.setDaemon(True)
+            self.recv_thread.start()
         else:
             self.arm_com = None
+
+    def receive_data(self):
+        while not self.stop_recv:
+            time.sleep(0.1)
+            data = self.arm_com.read(1024)
+            if data == b'%':
+                self.arrived = True
+
+            '''
+            if self.recvData == b'%':
+                print("self.zeroingOperationFlag = 1")
+                self.zeroingOperationFlag = 1
+                self.receiveUpdateSignal.emit(self.recvData.decode())
+
+            if self.recvData == '':
+                continue
+            else:
+                if len(self.recvData)!=0:
+                    self.recvDataFlag = 1
+                    print("type(self.recvData)=",type(self.recvData))
+                    print("len(self.recvData)=",len(self.recvData))
+                    print("self.recvData=",self.recvData)
+                    self.receiveUpdateSignal.emit(self.recvData.decode())
+            '''
 
     def go_ready_location(self):
         '''
@@ -56,7 +92,13 @@ class Robot:
             send_data = bytes(cmd, 'ascii')
             ret = self.arm_com.write(send_data)
             print(ret)
-            time.sleep(self.sleep_time)
+            time_passed = 0
+            while (not self.arrived):
+                time.sleep(0.1)
+                time_passed += 0.1
+                if time_passed > self.timeout:
+                    break
+            self.arrived = False
 
         return True
 
@@ -131,3 +173,8 @@ class Robot:
             print("Location unachievable!")
             return False
         return self.go_phi_location(phi_ary)
+
+    def stop(self):
+        if not self.sim:
+            self.stop_recv = True
+            self.recv_thread.join()

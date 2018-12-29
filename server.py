@@ -221,3 +221,5 @@ while True:
 if args.debug == False:
     recv_img_thread.stop()
     recv_img_thread.join()
+
+r.stop()
