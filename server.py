@@ -210,6 +210,7 @@ while True:
             start_coord = np.hstack([start_pt, pick['dir']])
             end_coord = np.hstack([end_pt, pick['dir']])
             r.go_cts_locations([start_coord, end_coord])
+            r.go_ready_location()
 
         # 9. go back to the observe location
         r.go_observe_location()

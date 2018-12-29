@@ -50,5 +50,6 @@ cfg.ang_rng = [[-150, 150],
                [-180, 180]]
 
 cfg.obs_loc = [0, 75, -145, 0, -30, 0]
+cfg.ready_loc = [0, 15, -95, 0, -30, 0]
 
 cfg.result_dir = "vis"

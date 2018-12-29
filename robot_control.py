@@ -1,12 +1,25 @@
+import serial
+import time
+
 from cfgs.config import cfg
 from robot_kinematics import *
-
 
 class Robot:
     def __init__(self, sim):
         ''' initialize the connection with the robot arm
         '''
         self.sim = sim
+        self.sleep_time = 5
+        if not self.sim:
+            self.arm_com = serial.Serial('/dev/ttyUSB0', 115200, timeout = 0.5)
+        else:
+            self.arm_com = None
+
+    def go_ready_location(self):
+        '''
+        let the robot move to the ready location
+        '''
+        self.go_phi_location(cfg.ready_loc)
 
     def go_observe_location(self):
         '''
@@ -27,14 +40,22 @@ class Robot:
         is_available = self.check_available(phi_ary)
         if not is_available:
             return False
-        print("Go to location: ")
-        print(' '.join([str(round(e, 2)) for e in phi_ary]))
-        if self.sim == True:
+        if self.sim:
             # move the robot
+            print("Go to location: ")
+            print(' '.join([str(round(e, 2)) for e in phi_ary]))
             pass
         else:
             # send move command to the simulator
-            pass
+            phi_list = [str(round(e, 2)) for e in phi_ary]
+            cmd_eles = ["J%d=%s" % (idx + 1, e) for idx, e in enumerate(phi_list)]
+            cmd = "G00 " + " ".join(cmd_eles) + "\r\n"
+            print(cmd)
+            send_data = bytes(cmd, 'ascii')
+            ret = self.arm_com.write(send_data)
+            print(ret)
+            time.sleep(self.sleep_time)
+
         return True
 
     def check_available(self, angles):
