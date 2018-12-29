@@ -11,7 +11,9 @@ class Robot:
         self.sim = sim
         self.sleep_time = 5
         if not self.sim:
-            self.arm_com = serial.Serial('/dev/ttyUSB0', 115200, timeout = 0.5)
+            self.arm_com = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.5)
+            sendData = bytes([0x30, 0x10, 0x14])
+            self.arm_com.write(sendData)
         else:
             self.arm_com = None
 
