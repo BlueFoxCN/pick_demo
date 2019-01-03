@@ -7,9 +7,12 @@ cfg.img_w = 640
 cfg.img_h = 480
 
 cfg.img_ip = "127.0.0.1"
-
 cfg.img_port = 9003
 cfg.img_list_len = 10
+
+cfg.simu_ip = "127.0.0.1"
+cfg.simu_robot_port = 9004
+cfg.simu_pc_port = 9005
 
 cfg.seg_model_path = "models/seg"
 cfg.det_model_path = "models/det"

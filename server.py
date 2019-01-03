@@ -32,6 +32,8 @@ if os.path.isdir(cfg.result_dir) == False:
     os.mkdir(cfg.result_dir)
 
 r = Robot(args.sim)
+if args.sim:
+    pc_server = PointCloudServer()
 
 # Load detection model and point cloud segmentation model
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
@@ -45,7 +47,7 @@ det_predict_config = PredictConfig(session_init=det_sess_init,
 det_predict_func = OfflinePredictor(det_predict_config)
 
 seg_sess_init = SaverRestore(cfg.seg_model_path)
-seg_model = SegModel() 
+seg_model = SegModel()
 seg_predict_config = PredictConfig(session_init=seg_sess_init,
                                    model=seg_model,
                                    input_names=["input"],
@@ -116,6 +118,9 @@ while True:
             save_ply_file(pc, os.path.join(vis_dir_path, 'pc.ply'))
             done_save_pc = time.time()
             print('point cloud save time: %g' % (done_save_pc - start_time))
+
+        if args.sim == True:
+            pc_server.send_pc(pc)
 
         # 3. detect the targets from the color image
         start_time = time.time()

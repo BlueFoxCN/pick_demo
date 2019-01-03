@@ -1,9 +1,47 @@
 import serial
+from queue import Queue
+import struct
+import socket
 import threading
 import time
 
 from cfgs.config import cfg
 from robot_kinematics import *
+
+class PointCloudServer:
+    def __init__(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        simu_server_addr = (cfg.simu_ip, cfg.simu_pc_port)
+        self.sock.connect(simu_server_addr)
+
+        self.result_queue = Queue(10)
+        send_th = threading.Thread(target=self.send_pc_bg)
+        send_th.start()
+
+    def send_pc_bg(self):
+        while True:
+            pc = self.result_queue.get()
+            point_num = pc.shape[0]
+            self.sock.sendall(struct.pack("=i", point_num))
+            '''
+            pc_xyz = pc[:, :3]
+            pc_rgb = pc[:, 3:]
+            pc_xyz_data = struct.pack("=%d%f" % (3 * point_num), *pc_xyz.flatten('F'))
+            pc_rgb_data = struct.pack("=%d%i" % (3 * point_num), *pc_rgb.flatten('F'))
+            # self.sock.sendall(pc_xyz_data)
+            # self.sock.sendall(pc_rgb_data)
+            '''
+            point_data_list = []
+            for point in pc:
+                point_data = struct.pack("=3f3i", *(point[:3]), *(point[3:].astype(np.int)))
+                point_data_list.append(point_data)
+            pc_data = b"".join(point_data_list)
+            self.sock.sendall(pc_data)
+
+
+    def send_pc(self, pc):
+        self.result_queue.put(pc)
+
 
 class Robot:
     def __init__(self, sim):
@@ -28,6 +66,9 @@ class Robot:
             self.recv_thread.start()
         else:
             self.arm_com = None
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            simu_server_addr = (cfg.simu_ip, cfg.simu_robot_port)
+            self.sock.connect(simu_server_addr)
 
     def receive_data(self):
         while not self.stop_recv:
@@ -35,23 +76,6 @@ class Robot:
             data = self.arm_com.read(1024)
             if data == b'%':
                 self.arrived = True
-
-            '''
-            if self.recvData == b'%':
-                print("self.zeroingOperationFlag = 1")
-                self.zeroingOperationFlag = 1
-                self.receiveUpdateSignal.emit(self.recvData.decode())
-
-            if self.recvData == '':
-                continue
-            else:
-                if len(self.recvData)!=0:
-                    self.recvDataFlag = 1
-                    print("type(self.recvData)=",type(self.recvData))
-                    print("len(self.recvData)=",len(self.recvData))
-                    print("self.recvData=",self.recvData)
-                    self.receiveUpdateSignal.emit(self.recvData.decode())
-            '''
 
     def go_ready_location(self):
         '''
@@ -65,7 +89,7 @@ class Robot:
         return when the action is finished
         '''
         self.go_phi_location(cfg.obs_loc)
-    
+
     def go_phi_location(self, phi_ary):
         '''
         let the robot move to the specific location defined by angles of the six joints
@@ -79,12 +103,14 @@ class Robot:
         if not is_available:
             return False
         if self.sim:
-            # move the robot
+            # send joint data to the simulator
+            # six angles are encoded into 24 bytes (each one is a float number and encoded into 4 bytes)
             print("Go to location: ")
             print(' '.join([str(round(e, 2)) for e in phi_ary]))
-            pass
+            data = struct.pack("=6f", *np.array(phi_ary))
+            self.sock.sendall(data)
         else:
-            # send move command to the simulator
+            # send move command to the serial port
             phi_list = [str(round(e, 2)) for e in phi_ary]
             cmd_eles = ["J%d=%s" % (idx + 1, e) for idx, e in enumerate(phi_list)]
             cmd = "G00 " + " ".join(cmd_eles) + "\r\n"
@@ -138,8 +164,6 @@ class Robot:
 
         phi_ary_list = []
         last_phi_ary = None
-        # import pdb
-        # pdb.set_trace()
         for sol_list in sol_list_list:
             if last_phi_ary is None:
                 phi_ary_list.append(sol_list[0])
@@ -153,7 +177,7 @@ class Robot:
 
         for phi_ary in phi_ary_list:
             self.go_phi_location(phi_ary)
-    
+
     def go_cts_location(self, coord):
         '''
         let the robot move to the specific location defined by the cartesian coordinate
