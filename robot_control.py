@@ -10,13 +10,19 @@ from robot_kinematics import *
 
 class PointCloudServer:
     def __init__(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        simu_server_addr = (cfg.simu_ip, cfg.simu_pc_port)
-        self.sock.connect(simu_server_addr)
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            simu_server_addr = (cfg.simu_ip, cfg.simu_pc_port)
+            self.sock.connect(simu_server_addr)
+            self.connected = True
+        except ConnectionRefusedError:
+            self.connected = False
+            print('Connection to point cloud server is refused!')
 
-        self.result_queue = Queue(10)
-        send_th = threading.Thread(target=self.send_pc_bg)
-        send_th.start()
+        if self.connected:
+            self.result_queue = Queue(10)
+            send_th = threading.Thread(target=self.send_pc_bg)
+            send_th.start()
 
     def send_pc_bg(self):
         while True:
@@ -40,7 +46,8 @@ class PointCloudServer:
 
 
     def send_pc(self, pc):
-        self.result_queue.put(pc)
+        if self.connected:
+            self.result_queue.put(pc)
 
 
 class Robot:
@@ -66,9 +73,14 @@ class Robot:
             self.recv_thread.start()
         else:
             self.arm_com = None
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            simu_server_addr = (cfg.simu_ip, cfg.simu_robot_port)
-            self.sock.connect(simu_server_addr)
+            try:
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                simu_server_addr = (cfg.simu_ip, cfg.simu_robot_port)
+                self.sock.connect(simu_server_addr)
+                self.connected = True
+            except ConnectionRefusedError:
+                self.connected = False
+                print('Connection to robot server is refused!')
 
     def receive_data(self):
         while not self.stop_recv:
@@ -107,8 +119,9 @@ class Robot:
             # six angles are encoded into 24 bytes (each one is a float number and encoded into 4 bytes)
             print("Go to location: ")
             print(' '.join([str(round(e, 2)) for e in phi_ary]))
-            data = struct.pack("=6f", *np.array(phi_ary))
-            self.sock.sendall(data)
+            if self.connected:
+                data = struct.pack("=6f", *np.array(phi_ary))
+                self.sock.sendall(data)
         else:
             # send move command to the serial port
             phi_list = [str(round(e, 2)) for e in phi_ary]

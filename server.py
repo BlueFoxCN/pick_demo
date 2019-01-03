@@ -183,6 +183,7 @@ while True:
             predictions = seg_predict_func(frustum_pc)[0]
             seg_idxs = np.where(predictions[0])[0]
             seg_frustum_pc = ori_frustum_pc[seg_idxs]
+            seg_idxs_ori = np.array(filtered_idxes_list[idx])[seg_idxs]
             save_ply_file(seg_frustum_pc, os.path.join(vis_dir_path, '%d_seg.ply' % idx))
             done_segment_pc = time.time()
             print('segment pc time: %g' % (done_segment_pc - start_time))
@@ -206,9 +207,22 @@ while True:
             direction = np.array([1, 0, -1])
             direction = direction / np.linalg.norm(direction)
             picks.append({"pt": tgt_pt,
-                          "dir": direction})
+                          "dir": direction,
+                          "seg_idxs": seg_idxs_ori})
 
-        # 8. execute each calculated pick
+        # 8. update the point cloud if in simulation mode
+        if args.sim or args.vis:
+            pc_copy = np.copy(pc)
+            for pick in picks:
+                num = len(pick['seg_idxs'])
+                pc_copy[pick['seg_idxs'], 3:] = np.hstack([255 * np.ones((num, 1)),np.zeros((num, 2))])
+            if args.sim:
+                pc_server.send_pc(pc_copy)
+            if args.vis == True:
+                save_ply_file(pc_copy, os.path.join(vis_dir_path, 'pc_seg.ply'))
+
+
+        # 9. execute each calculated pick
         for pick in picks:
             end_pt = pick['pt'] - cfg.tool_len * pick['dir']
             start_pt = end_pt - cfg.pick_dist * pick['dir']
@@ -217,13 +231,13 @@ while True:
             r.go_cts_locations([start_coord, end_coord])
             r.go_ready_location()
 
-        # 9. go back to the observe location
+        # 10. go back to the observe location
         r.go_observe_location()
 
     elif msg == 'q':
         break
 
-if args.debug == False:
+if not args.debug:
     recv_img_thread.stop()
     recv_img_thread.join()
 
