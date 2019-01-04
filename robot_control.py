@@ -8,6 +8,9 @@ import time
 from cfgs.config import cfg
 from robot_kinematics import *
 
+def ang2rad(angle):
+    return angle * np.pi / 180
+
 class PointCloudServer:
     def __init__(self):
         try:
@@ -39,7 +42,7 @@ class PointCloudServer:
             '''
             point_data_list = []
             for point in pc:
-                point_data = struct.pack("=3f3i", *(point[:3]), *(point[3:].astype(np.int)))
+                point_data = struct.pack("=3f3B", *(point[:3]), *(point[3:].astype(np.int)))
                 point_data_list.append(point_data)
             pc_data = b"".join(point_data_list)
             self.sock.sendall(pc_data)
@@ -120,8 +123,9 @@ class Robot:
             print("Go to location: ")
             print(' '.join([str(round(e, 2)) for e in phi_ary]))
             if self.connected:
-                data = struct.pack("=6f", *np.array(phi_ary))
+                data = struct.pack("=6f", *np.array([ang2rad(e) for e in phi_ary]))
                 self.sock.sendall(data)
+                time.sleep(2)
         else:
             # send move command to the serial port
             phi_list = [str(round(e, 2)) for e in phi_ary]
