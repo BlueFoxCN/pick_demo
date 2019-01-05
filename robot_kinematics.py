@@ -9,17 +9,17 @@ def vecs_angle(vec1, vec2):
     cos_val = np.dot(vec1, vec2) / np.linalg.norm(vec1) / np.linalg.norm(vec2)
     return np.arccos(np.around(cos_val, eps_exp))
 
-def angle2rad(angle):
+def ang2rad(angle):
     return angle * np.pi / 180
 
-def rad2angle(rad):
+def rad2ang(rad):
     return rad * 180 / np.pi
 
 def g2b(phi_angle_ary):
-    theta_bias_ary = np.array([0, angle2rad(90), angle2rad(-90), 0, 0, 0])
-    phi_ary = np.array([angle2rad(e) for e in phi_angle_ary])
+    theta_bias_ary = np.array([0, ang2rad(90), ang2rad(-90), 0, 0, 0])
+    phi_ary = np.array([ang2rad(e) for e in phi_angle_ary])
     alpha_angle_ary = np.array([0, 90, 0, -90, 90, 90])
-    alpha = np.array([angle2rad(e) for e in alpha_angle_ary])
+    alpha = np.array([ang2rad(e) for e in alpha_angle_ary])
     a = np.array([0, 140, 265, 0, 0, 0])
     d = np.array([320, 0, 20, 343, 0, -156])
     theta = phi_ary + theta_bias_ary
@@ -297,15 +297,15 @@ def inverse_kinematics(coord):
             phi_4_list[idx] -= np.pi
             phi_5_list[idx] = -phi_5_list[idx]
 
-    def list_rad2angle(rad_list):
-        angle_list = [rad2angle(e) for e in rad_list]
+    def list_rad2ang(rad_list):
+        angle_list = [rad2ang(e) for e in rad_list]
         return angle_list
 
-    phi_1_angle_list = list_rad2angle(phi_1_list)
-    phi_2_angle_list = list_rad2angle(phi_2_list)
-    phi_3_angle_list = list_rad2angle(phi_3_list)
-    phi_4_angle_list = list_rad2angle(phi_4_list)
-    phi_5_angle_list = list_rad2angle(phi_5_list)
+    phi_1_angle_list = list_rad2ang(phi_1_list)
+    phi_2_angle_list = list_rad2ang(phi_2_list)
+    phi_3_angle_list = list_rad2ang(phi_3_list)
+    phi_4_angle_list = list_rad2ang(phi_4_list)
+    phi_5_angle_list = list_rad2ang(phi_5_list)
 
     sol_list = []
     for idx in range(len(phi_1_angle_list)):

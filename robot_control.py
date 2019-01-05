@@ -8,9 +8,6 @@ import time
 from cfgs.config import cfg
 from robot_kinematics import *
 
-def ang2rad(angle):
-    return angle * np.pi / 180
-
 class PointCloudServer:
     def __init__(self):
         try:
@@ -30,19 +27,12 @@ class PointCloudServer:
     def send_pc_bg(self):
         while True:
             pc = self.result_queue.get()
-            point_num = pc.shape[0]
+            sel_pc = pc[points[:, 3] < cfg.depth_th] if cfg.depth_th > 0 else pc
+            point_num = sel_pc.shape[0]
             self.sock.sendall(struct.pack("=i", point_num))
-            '''
-            pc_xyz = pc[:, :3]
-            pc_rgb = pc[:, 3:]
-            pc_xyz_data = struct.pack("=%d%f" % (3 * point_num), *pc_xyz.flatten('F'))
-            pc_rgb_data = struct.pack("=%d%i" % (3 * point_num), *pc_rgb.flatten('F'))
-            # self.sock.sendall(pc_xyz_data)
-            # self.sock.sendall(pc_rgb_data)
-            '''
             point_data_list = []
-            for point in pc:
-                point_data = struct.pack("=3f3B", *(point[:3]), *(point[3:].astype(np.int)))
+            for point in sel_pc:
+                point_data = struct.pack("=3f3B", *(point[:3] / 1000), *(point[3:].astype(np.int)))
                 point_data_list.append(point_data)
             pc_data = b"".join(point_data_list)
             self.sock.sendall(pc_data)
@@ -76,6 +66,7 @@ class Robot:
             self.recv_thread.start()
         else:
             self.arm_com = None
+            self.cur_loc = cfg.obs_loc
             try:
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 simu_server_addr = (cfg.simu_ip, cfg.simu_robot_port)
@@ -123,9 +114,17 @@ class Robot:
             print("Go to location: ")
             print(' '.join([str(round(e, 2)) for e in phi_ary]))
             if self.connected:
-                data = struct.pack("=6f", *np.array([ang2rad(e) for e in phi_ary]))
-                self.sock.sendall(data)
-                time.sleep(2)
+                # the robot should move smoothly from the cur location to the target target_location
+                rot_angle = np.array(phi_ary) - np.array(self.cur_loc)
+                rot_time = rot_angle / cfg.rot_speed    # in seconds
+                send_num = np.max(rot_time) // cfg.sim_robot_interval
+                rot_step = rot_angle / send_num
+                for idx in range(send_num):
+                    cur_phi_ary = phi_ary + (idx + 1) * rot_step
+                    data = struct.pack("=6f", *np.array([ang2rad(e) for e in cur_phi_ary]))
+                    self.sock.sendall(data)
+                    time.sleep(cfg.sim_robot_interval)
+                self.cur_loc = phi_ary
         else:
             # send move command to the serial port
             phi_list = [str(round(e, 2)) for e in phi_ary]

@@ -54,5 +54,12 @@ cfg.ang_rng = [[-150, 150],
 
 cfg.obs_loc = [0, 75, -145, 0, -30, 0]
 cfg.ready_loc = [0, 15, -95, 0, -30, 0]
+# rotate speed of each joint in angle/second
+cfg.rot_speed = np.array([5, 5, 5, 5, 5, 5])
+# time interval to send joint to simulator
+cfg.sim_robot_interval = 0.1
 
 cfg.result_dir = "vis"
+
+# only show the point cloud with z value smaller than depth_th (unit: mm)
+cfg.depth_th = 1000
