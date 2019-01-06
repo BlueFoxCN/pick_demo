@@ -27,7 +27,7 @@ class PointCloudServer:
     def send_pc_bg(self):
         while True:
             pc = self.result_queue.get()
-            sel_pc = pc[points[:, 3] < cfg.depth_th] if cfg.depth_th > 0 else pc
+            sel_pc = pc[pc[:, 3] < cfg.depth_th] if cfg.depth_th > 0 else pc
             point_num = sel_pc.shape[0]
             self.sock.sendall(struct.pack("=i", point_num))
             point_data_list = []
@@ -117,10 +117,12 @@ class Robot:
                 # the robot should move smoothly from the cur location to the target target_location
                 rot_angle = np.array(phi_ary) - np.array(self.cur_loc)
                 rot_time = rot_angle / cfg.rot_speed    # in seconds
-                send_num = np.max(rot_time) // cfg.sim_robot_interval
+                import pdb
+                pdb.set_trace()
+                send_num = max(1, int(np.max(rot_time) // cfg.sim_robot_interval))
                 rot_step = rot_angle / send_num
                 for idx in range(send_num):
-                    cur_phi_ary = phi_ary + (idx + 1) * rot_step
+                    cur_phi_ary = phi_ary - (send_num - 1 - idx) * rot_step
                     data = struct.pack("=6f", *np.array([ang2rad(e) for e in cur_phi_ary]))
                     self.sock.sendall(data)
                     time.sleep(cfg.sim_robot_interval)
