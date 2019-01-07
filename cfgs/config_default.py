@@ -1,5 +1,6 @@
 import numpy as np
 from easydict import EasyDict as edict
+from robot_kinematics import *
 
 cfg = edict()
 
@@ -53,6 +54,15 @@ cfg.ang_rng = [[-150, 150],
                [-180, 180]]
 
 cfg.obs_loc = [0, 75, -145, 0, -30, 0]
+
+
+g2b_list = g2b(cfg.obs_loc)
+cfg.g2b_mat = np.identity(4)
+for t in g2b_list:
+    cfg.g2b_mat = np.matmul(t, cfg.g2b_mat)
+cfg.c2b_mat = cfg.g2b_mat.dot(cfg.c2g_mat)
+
+
 cfg.ready_loc = [0, 15, -95, 0, -30, 0]
 # rotate speed of each joint in angle/second
 cfg.rot_speed = np.array([20, 20, 20, 20, 20, 20])

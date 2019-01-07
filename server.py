@@ -131,27 +131,28 @@ while True:
         boxes = postprocess(predictions, image_shape=color_img.shape[:2], det_th=cfg.conf_th)
         boxes = boxes['taozi'] if 'taozi' in boxes.keys() else []
 
+        det_result_img = np.copy(color_img)
         for idx, box in enumerate(boxes):
             [conf, xmin, ymin, xmax, ymax] = box
-            cv2.rectangle(color_img,
+            cv2.rectangle(det_result_img,
                           (int(xmin), int(ymin)),
                           (int(xmax), int(ymax)),
                           (255, 0, 0),
                           2)
-            cv2.putText(color_img,
+            cv2.putText(det_result_img,
                         str(round(conf, 2)),
                         (int(xmin + 3), int(ymax) - 3),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5,
                         (255, 0, 0))
-            cv2.putText(color_img,
+            cv2.putText(det_result_img,
                         str(idx),
                         (int(xmin + 3), int(ymax) - 16),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5,
                         (255, 0, 0))
 
-        misc.imsave(os.path.join(vis_dir_path, 'det.jpg'), color_img)
+        misc.imsave(os.path.join(vis_dir_path, 'det.jpg'), det_result_img)
         done_det = time.time()
         print('detection time: %g' % (done_det - start_time))
 
@@ -190,14 +191,9 @@ while True:
 
             # 6. transform to the robot frame
             start_time = time.time()
-            g2b_list = g2b(cfg.obs_loc)
-            g2b_mat = np.identity(4)
-            for t in g2b_list:
-                g2b_mat = np.matmul(t, g2b_mat)
-            c2b_mat = g2b_mat.dot(cfg.c2g_mat)
             for point in seg_frustum_pc:
                 point_homo = np.hstack([point[:3], 1])
-                point_base = c2b_mat.dot(point_homo)[:3]
+                point_base = cfg.c2b_mat.dot(point_homo)[:3]
                 point[:3] = point_base
             done_transform_pc = time.time()
             print('transform pc time: %g' % (done_transform_pc - start_time))
