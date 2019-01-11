@@ -70,7 +70,8 @@ for t in g2b_list:
 cfg.c2b_mat = cfg.g2b_mat.dot(cfg.c2g_mat)
 
 
-cfg.ready_loc = [0, 15, -95, 0, -30, 0]
+# cfg.ready_loc = [0, 15, -95, 0, -30, 0]
+cfg.ready_loc = [10.47, 31.31, -119.71, 0, 8.29, 0]
 # rotate speed of each joint in angle/second
 cfg.rot_speed = np.array([20, 20, 20, 20, 20, 20])
 # time interval to send joint to simulator

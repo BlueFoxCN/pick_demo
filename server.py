@@ -200,7 +200,7 @@ while True:
 
             # 7. calculate the location and direction
             tgt_pt = np.mean(seg_frustum_pc[:, :3], 0)
-            direction = np.array([1, 0, -1])
+            direction = np.array([1, 0, 1])
             direction = direction / np.linalg.norm(direction)
             picks.append({"pt": tgt_pt,
                           "dir": direction,
@@ -226,6 +226,7 @@ while True:
             end_coord = np.hstack([end_pt, pick['dir']])
             r.go_cts_locations([start_coord, end_coord])
             r.go_ready_location()
+            break
 
         # 10. go back to the observe location
         r.go_observe_location()

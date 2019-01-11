@@ -135,7 +135,6 @@ class Robot:
             print(cmd)
             send_data = bytes(cmd, 'ascii')
             ret = self.arm_com.write(send_data)
-            print(ret)
             time_passed = 0
             while (not self.arrived):
                 time.sleep(0.1)
