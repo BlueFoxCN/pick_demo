@@ -91,6 +91,12 @@ class Robot:
         '''
         self.go_phi_location(cfg.ready_loc)
 
+    def go_drop_location(self):
+        '''
+        let the robot move to the location where the object is dropped
+        '''
+        self.go_phi_location(cfg.drop_loc)
+
     def go_observe_location(self):
         '''
         let the robot move to the observation location
@@ -144,6 +150,36 @@ class Robot:
             self.arrived = False
 
         return True
+
+    def open_hand(self):
+        if self.sim == False:
+            sendData = bytes("G06 O=P9.1\r\n", "ascii")
+            self.com.write(sendData)
+            time.sleep(1.5)
+            sendData = bytes("G06 O=P11.1\r\n", "ascii")
+            self.com.write(sendData)
+
+            time.sleep(1)
+            sendData = bytes("G06 O=P9.0\r\n", "ascii")
+            self.com.write(sendData)
+            time.sleep(1)
+            sendData = bytes("G06 O=P11.0\r\n", "ascii")
+            self.com.write(sendData)
+
+    def close_hand(self):
+        if self.sim == False:
+            sendData = bytes("G06 O=P8.1\r\n", "ascii")
+            self.com.write(sendData)
+            time.sleep(1.5)
+            sendData = bytes("G06 O=P10.1\r\n", "ascii")
+            self.com.write(sendData)
+
+            time.sleep(1)
+            sendData = bytes("G06 O=P8.0\r\n", "ascii")
+            self.com.write(sendData)
+            time.sleep(1)
+            sendData = bytes("G06 O=P10.0\r\n", "ascii")
+            self.com.write(sendData)
 
     def check_available(self, angles):
         '''

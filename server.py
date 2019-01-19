@@ -219,12 +219,16 @@ while True:
 
 
         # 9. execute each calculated pick
+        r.open_hand()
         for pick in picks:
             end_pt = pick['pt'] - cfg.tool_len * pick['dir']
             start_pt = end_pt - cfg.pick_dist * pick['dir']
             start_coord = np.hstack([start_pt, pick['dir']])
             end_coord = np.hstack([end_pt, pick['dir']])
             r.go_cts_locations([start_coord, end_coord])
+            r.close_hand()
+            r.go_drop_location()
+            r.open_hand()
             r.go_ready_location()
             break
 
