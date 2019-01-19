@@ -49,7 +49,7 @@ cfg.c2g_mat = np.array([[ 0.025742,  0.034471,  0.999074, -22.90121],
 
 cfg.final_mat = cfg.color_mat.dot(cfg.d2c_mat).dot(np.linalg.inv(cfg.depth_mat))
 
-cfg.tool_len = 90
+cfg.tool_len = 160
 cfg.pick_dist = 50
 
 cfg.ang_rng = [[-150, 150],
@@ -69,14 +69,20 @@ for t in g2b_list:
     cfg.g2b_mat = np.matmul(t, cfg.g2b_mat)
 cfg.c2b_mat = cfg.g2b_mat.dot(cfg.c2g_mat)
 
+cfg.arm_timeout = 10
 
-# cfg.ready_loc = [0, 15, -95, 0, -30, 0]
+cfg.cts_err = np.array([0, -25, -15, 0, 0, 0])
+
 cfg.ready_loc = [10.47, 31.31, -119.71, 0, 8.29, 0]
-cfg.drop_loc = [-16.30, -10.20, -81.29, 0, -90, 0]
+# cfg.drop_loc = [-16.30, -10.20, -81.29, 0, -90, 0]
+# cfg.drop_loc = [40.88, -46.52, -12.47, 0, -75.48, 0]
+cfg.drop_loc = [-73.41, 65.91, -121.09, 0, -56.39, 0]
 # rotate speed of each joint in angle/second
 cfg.rot_speed = np.array([20, 20, 20, 20, 20, 20])
 # time interval to send joint to simulator
 cfg.sim_robot_interval = 0.02
+
+cfg.hand_delay = 0.8
 
 cfg.result_dir = "vis"
 

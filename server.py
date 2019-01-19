@@ -200,7 +200,7 @@ while True:
 
             # 7. calculate the location and direction
             tgt_pt = np.mean(seg_frustum_pc[:, :3], 0)
-            direction = np.array([1, 0, 1])
+            direction = np.array([1, 0, 0.5])
             direction = direction / np.linalg.norm(direction)
             picks.append({"pt": tgt_pt,
                           "dir": direction,
@@ -218,19 +218,58 @@ while True:
                 save_ply_file(pc_copy, os.path.join(vis_dir_path, 'pc_seg.ply'))
 
 
+        print("%d picks." % len(picks))
         # 9. execute each calculated pick
-        r.open_hand()
         for pick in picks:
             end_pt = pick['pt'] - cfg.tool_len * pick['dir']
-            start_pt = end_pt - cfg.pick_dist * pick['dir']
+            start_pt = end_pt - 2 * cfg.pick_dist * pick['dir']
+            back_pt = start_pt - 1 * cfg.pick_dist * pick['dir']
+
             start_coord = np.hstack([start_pt, pick['dir']])
             end_coord = np.hstack([end_pt, pick['dir']])
-            r.go_cts_locations([start_coord, end_coord])
+            back_coord = np.hstack([back_pt, pick['dir']])
+
+            print("go pick location")
+            r.go_cts_locations([start_coord])
+
+            '''
+            msg = input('Quit(q) or Continue(any other key)')
+            if msg == 'q':
+                break
+            '''
+
+            r.go_cts_locations([end_coord])
+
+            '''
+            msg = input('Quit(q) or Continue(any other key)')
+            if msg == 'q':
+                break
+            '''
+
+            print("close hand")
             r.close_hand()
+
+            '''
+            msg = input('Quit(q) or Continue(any other key)')
+            if msg == 'q':
+                break
+            '''
+
+            r.go_cts_locations([back_coord])
+
+            '''
+            msg = input('Quit(q) or Continue(any other key)')
+            if msg == 'q':
+                break
+            '''
+
+            print("go drop location")
             r.go_drop_location()
+            print("open hand")
             r.open_hand()
-            r.go_ready_location()
-            break
+            # print("go ready location")
+            # r.go_ready_location()
+            # break
 
         # 10. go back to the observe location
         r.go_observe_location()

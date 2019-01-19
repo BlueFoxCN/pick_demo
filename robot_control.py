@@ -50,7 +50,6 @@ class Robot:
         ''' initialize the connection with the robot arm
         '''
         self.sim = sim
-        self.timeout = 5
         if not self.sim:
             self.arm_com = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.5)
             # send the teach command
@@ -60,6 +59,9 @@ class Robot:
             # send the callback command
             send_data = bytes("G07 GCM=1\r\n",'ascii')
             self.arm_com.write(send_data)
+
+            self.operating_hand = False
+            self.hand_ret_time = 0
 
             self.arrived = False
             self.stop_recv = False
@@ -82,6 +84,11 @@ class Robot:
         while not self.stop_recv:
             time.sleep(0.1)
             data = self.arm_com.read(1024)
+            if data[:3] == b'G06':
+                self.hand_ret_time += 1
+                if self.hand_ret_time == 4:
+                    self.operating_hand = False
+                    self.hand_ret_time = 0
             if data == b'%':
                 self.arrived = True
 
@@ -145,7 +152,7 @@ class Robot:
             while (not self.arrived):
                 time.sleep(0.1)
                 time_passed += 0.1
-                if time_passed > self.timeout:
+                if time_passed > cfg.arm_timeout:
                     break
             self.arrived = False
 
@@ -153,40 +160,58 @@ class Robot:
 
     def open_hand(self):
         if self.sim == False:
+            self.operating_hand = True
+
             sendData = bytes("G06 O=P9.1\r\n", "ascii")
-            self.com.write(sendData)
-            time.sleep(1.5)
+            self.arm_com.write(sendData)
+            time.sleep(cfg.hand_delay)
             sendData = bytes("G06 O=P11.1\r\n", "ascii")
-            self.com.write(sendData)
+            self.arm_com.write(sendData)
 
             time.sleep(1)
             sendData = bytes("G06 O=P9.0\r\n", "ascii")
-            self.com.write(sendData)
+            self.arm_com.write(sendData)
             time.sleep(1)
             sendData = bytes("G06 O=P11.0\r\n", "ascii")
-            self.com.write(sendData)
+            self.arm_com.write(sendData)
+
+            time_passed = 0
+            while (self.operating_hand):
+                time.sleep(0.1)
+                time_passed += 0.1
+                if time_passed > cfg.arm_timeout:
+                    break
 
     def close_hand(self):
         if self.sim == False:
+            self.operating_hand = True
+
             sendData = bytes("G06 O=P8.1\r\n", "ascii")
-            self.com.write(sendData)
-            time.sleep(1.5)
+            self.arm_com.write(sendData)
+            time.sleep(cfg.hand_delay)
             sendData = bytes("G06 O=P10.1\r\n", "ascii")
-            self.com.write(sendData)
+            self.arm_com.write(sendData)
 
             time.sleep(1)
             sendData = bytes("G06 O=P8.0\r\n", "ascii")
-            self.com.write(sendData)
+            self.arm_com.write(sendData)
             time.sleep(1)
             sendData = bytes("G06 O=P10.0\r\n", "ascii")
-            self.com.write(sendData)
+            self.arm_com.write(sendData)
+
+            time_passed = 0
+            while (self.operating_hand):
+                time.sleep(0.1)
+                time_passed += 0.1
+                if time_passed > cfg.arm_timeout:
+                    break
 
     def check_available(self, angles):
         '''
         check whether the given angels are achivable
         '''
         for idx, angle in enumerate(angles):
-            if not cfg.ang_rng[idx][0] < angle < cfg.ang_rng[idx][1]:
+            if not cfg.ang_rng[idx][0] <= angle <= cfg.ang_rng[idx][1]:
                 return False
         return True
 
@@ -208,6 +233,7 @@ class Robot:
         '''
         sol_list_list = []
         for idx, coord in enumerate(coord_list):
+            coord = coord + cfg.cts_err
             sol_list = inverse_kinematics(coord)
             sol_list = [e for e in sol_list if self.check_available(e)]
             if len(sol_list) == 0:
@@ -240,6 +266,7 @@ class Robot:
 
         return True when the action is finished, reutrn False if the location is not available
         '''
+        coord = coord + cfg.cts_err
         sol_list = inverse_kinematics(coord)
         phi_ary = None
         for sol in sol_list:
